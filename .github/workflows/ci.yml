@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install
+      - run: npm run build
+      - name: Verify node loads and emits reasoning_effort
+        run: |
+          node -e "
+          const { LmChatDeepSeekThinking } = require('./dist/nodes/LmChatDeepSeekThinking/LmChatDeepSeekThinking.node.js');
+          const n = new LmChatDeepSeekThinking();
+          if (JSON.stringify(n.description.outputs) !== '[\"ai_languageModel\"]') throw new Error('bad outputs');
+          const ctx = {
+            getCredentials: async () => ({ apiKey: 'k', url: 'https://api.deepseek.com' }),
+            getNodeParameter: (name, _i, def) => ({ model: 'deepseek-reasoner', thinkingLevel: 'max', options: {} })[name] ?? def,
+          };
+          n.supplyData.call(ctx, 0).then(({ response }) => {
+            const effort = response.invocationParams({}).reasoning_effort;
+            if (effort !== 'max') throw new Error('reasoning_effort missing, got: ' + effort);
+            console.log('OK: reasoning_effort =', effort);
+          });
+          "

@@ -1,0 +1,65 @@
+{
+  "name": "n8n-nodes-deepseek-thinking",
+  "version": "0.1.0",
+  "description": "Make DeepSeek think as hard as your workflow deserves. An n8n community node that unlocks DeepSeek's Thinking Level (reasoning_effort: none to max) that the built-in node never exposed.",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "deepseek",
+    "deepseek-reasoner",
+    "reasoning-effort",
+    "thinking-mode",
+    "llm",
+    "ai-agent",
+    "langchain"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/pirazor/n8n-nodes-deepseek-thinking#readme",
+  "author": {
+    "name": "Dr. Enes Karaaslan",
+    "email": "eneskaraaslan67@gmail.com",
+    "url": "https://eneskaraaslan.com"
+  },
+  "contributors": [
+    {
+      "name": "Connected Wise LLC",
+      "url": "https://connectedwise.com"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pirazor/n8n-nodes-deepseek-thinking.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pirazor/n8n-nodes-deepseek-thinking/issues"
+  },
+  "engines": {
+    "node": ">=20.15"
+  },
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc && cp nodes/LmChatDeepSeekThinking/*.svg dist/nodes/LmChatDeepSeekThinking/",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/LmChatDeepSeekThinking/LmChatDeepSeekThinking.node.js"
+    ]
+  },
+  "dependencies": {
+    "@langchain/openai": "^0.3.0"
+  },
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "n8n-workflow": "^1.60.0",
+    "typescript": "^5.5.4"
+  }
+}
