@@ -1,4 +1,5 @@
 import { ChatOpenAI } from '@langchain/openai';
+import { N8nTracing } from './N8nTracing';
 import {
 	NodeConnectionTypes,
 	type ILoadOptionsFunctions,
@@ -229,6 +230,9 @@ export class LmChatDeepSeekThinking implements INodeType {
 			...(maxTokens && maxTokens > 0 ? { maxTokens } : {}),
 			timeout: options.timeout ?? 360000,
 			maxRetries: options.maxRetries ?? 2,
+			// Reports the run to n8n so the sub-node shows its output and the
+			// agent sees that the model produced a result.
+			callbacks: [new N8nTracing(this)],
 			configuration: {
 				baseURL: ((credentials.url as string) ?? 'https://api.deepseek.com').replace(/\/+$/, ''),
 			},

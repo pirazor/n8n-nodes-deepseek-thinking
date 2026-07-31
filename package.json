@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-deepseek-thinking",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Make DeepSeek think as hard as your workflow deserves. An n8n community node that unlocks DeepSeek's Thinking Level (reasoning_effort: none to max) that the built-in node never exposed.",
   "keywords": [
     "n8n-community-node-package",
@@ -52,6 +52,7 @@
     ]
   },
   "dependencies": {
+    "@langchain/core": "^0.3.0",
     "@langchain/openai": "^0.3.0"
   },
   "peerDependencies": {

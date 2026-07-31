@@ -79,9 +79,9 @@ response format all work as before.
 
 ## Notes
 
-- Token usage will not appear in n8n's log panel. The tracing helpers are
-  internal to `@n8n/n8n-nodes-langchain` and are not exported to community
-  packages. The model itself is unaffected.
+- Runs are reported to n8n, so the sub node shows its input, output and
+  token usage in the execution panel like the built in models do.
+
 - JSON response format and thinking are incompatible on some models. Use
   **None** if a model rejects the pair.
 - If the node does not appear in an Agent's Model dropdown, set
