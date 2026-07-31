@@ -38,7 +38,7 @@
   },
   "main": "index.js",
   "scripts": {
-    "build": "tsc && cp nodes/LmChatDeepSeekThinking/*.svg dist/nodes/LmChatDeepSeekThinking/",
+    "build": "tsc && cp nodes/LmChatDeepSeekThinking/deepseek.png dist/nodes/LmChatDeepSeekThinking/",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build"
   },

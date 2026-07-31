@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="nodes/LmChatDeepSeekThinking/deepseek.svg" width="84" alt="DeepSeek">
+  <img src="nodes/LmChatDeepSeekThinking/deepseek.png" width="84" alt="DeepSeek">
 </p>
 
 <h1 align="center">n8n-nodes-deepseek-thinking</h1>

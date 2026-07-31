@@ -37,7 +37,7 @@ export class LmChatDeepSeekThinking implements INodeType {
 	description: INodeTypeDescription = {
 		displayName: 'DeepSeek Chat Model (Thinking)',
 		name: 'lmChatDeepSeekThinking',
-		icon: 'file:deepseek.svg',
+		icon: 'file:deepseek.png',
 		group: ['transform'],
 		version: 1,
 		description: 'DeepSeek chat model with a configurable thinking level',
