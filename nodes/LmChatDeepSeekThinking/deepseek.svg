@@ -1,6 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 60 60" width="60" height="60">
-  <circle cx="30" cy="30" r="28" fill="#4D6BFE"/>
-  <path d="M30 14a16 16 0 0 0-9 29.2V47a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-3.8A16 16 0 0 0 30 14z" fill="#fff" opacity=".95"/>
-  <path d="M24 50h12M25 53h10" stroke="#4D6BFE" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-  <path d="M30 22v14M24 28h12" stroke="#4D6BFE" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="DeepSeek">
+  <!-- Stylised whale mark in DeepSeek blue. Original artwork, not the DeepSeek trademark asset. -->
+  <path fill="#4D6BFE" d="M28 14.5c-12.4 0-22.4 7.6-22.4 17 0 4.2 2 8 5.4 11-.8 2.7-2.5 5.1-5 6.7-1 .7-.5 2.3.7 2.4 5.4.5 10.1-1 13.5-3.5 2.5.9 5.1 1.4 7.8 1.4 12.4 0 22.4-7.6 22.4-17s-10-18-22.4-18z"/>
+  <path fill="#4D6BFE" opacity=".78" d="M50.6 24.1l9.6-6.4c1-.7 2.3.1 2.2 1.3l-1.4 18c-.1 1.2-1.6 1.7-2.4.9l-8.2-8.1c-.6-.6-.5-1.4.2-1.7z"/>
+  <circle cx="19.5" cy="27.5" r="3" fill="#fff"/>
+  <circle cx="20.4" cy="26.6" r="1.05" fill="#4D6BFE"/>
 </svg>

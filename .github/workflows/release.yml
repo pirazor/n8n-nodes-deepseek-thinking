@@ -1,0 +1,61 @@
+name: Publish to npm
+
+# Publishes on every version tag, e.g.:
+#   npm version patch && git push --follow-tags
+# Requires repo secret NPM_TOKEN (npmjs.com -> Access Tokens -> Granular/Automation).
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify the node loads and emits reasoning_effort
+        run: |
+          node -e "
+          const { LmChatDeepSeekThinking } = require('./dist/nodes/LmChatDeepSeekThinking/LmChatDeepSeekThinking.node.js');
+          const n = new LmChatDeepSeekThinking();
+          if (JSON.stringify(n.description.outputs) !== '[\"ai_languageModel\"]') throw new Error('bad outputs');
+          const ctx = {
+            getCredentials: async () => ({ apiKey: 'k', url: 'https://api.deepseek.com' }),
+            getNodeParameter: (name, _i, def) => ({ model: 'deepseek-reasoner', thinkingLevel: 'max', options: {} })[name] ?? def,
+          };
+          n.supplyData.call(ctx, 0).then(({ response }) => {
+            const e = response.invocationParams({}).reasoning_effort;
+            if (e !== 'max') throw new Error('reasoning_effort missing: ' + e);
+            console.log('OK reasoning_effort =', e);
+          });
+          "
+
+      - name: Check tag matches package.json version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./package.json').version")
+          if [ "$TAG" != "$PKG" ]; then
+            echo "Tag $TAG does not match package.json version $PKG"; exit 1
+          fi
+
+      - name: Publish
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
