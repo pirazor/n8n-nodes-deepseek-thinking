@@ -66,9 +66,9 @@ export class LmChatDeepSeekThinking implements INodeType {
 				name: 'model',
 				type: 'options',
 				typeOptions: { loadOptionsMethod: 'getModels' },
-				default: 'deepseek-reasoner',
+				default: 'deepseek-v4-flash',
 				description:
-					'The DeepSeek model to use. Thinking is only produced by models that support it (e.g. deepseek-reasoner).',
+					'The DeepSeek model to use. Graded thinking effort is honoured by deepseek-v4-flash and deepseek-v4-pro. The legacy deepseek-chat and deepseek-reasoner names were retired on 2026-07-24 and no longer resolve.',
 			},
 			{
 				displayName: 'Thinking Level',
@@ -197,8 +197,8 @@ export class LmChatDeepSeekThinking implements INodeType {
 				}
 
 				return [
-					{ name: 'deepseek-chat', value: 'deepseek-chat' },
-					{ name: 'deepseek-reasoner', value: 'deepseek-reasoner' },
+					{ name: 'deepseek-v4-flash', value: 'deepseek-v4-flash' },
+					{ name: 'deepseek-v4-pro', value: 'deepseek-v4-pro' },
 				];
 			},
 		},

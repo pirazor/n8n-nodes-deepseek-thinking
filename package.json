@@ -1,12 +1,13 @@
 {
   "name": "n8n-nodes-deepseek-thinking",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Make DeepSeek think as hard as your workflow deserves. An n8n community node that unlocks DeepSeek's Thinking Level (reasoning_effort: none to max) that the built-in node never exposed.",
   "keywords": [
     "n8n-community-node-package",
     "n8n",
     "deepseek",
-    "deepseek-reasoner",
+    "deepseek-v4",
+    "deepseek-v4-flash",
     "reasoning-effort",
     "thinking-mode",
     "llm",

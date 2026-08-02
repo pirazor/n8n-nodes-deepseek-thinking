@@ -24,7 +24,7 @@ jobs:
           if (JSON.stringify(n.description.outputs) !== '[\"ai_languageModel\"]') throw new Error('bad outputs');
           const ctx = {
             getCredentials: async () => ({ apiKey: 'k', url: 'https://api.deepseek.com' }),
-            getNodeParameter: (name, _i, def) => ({ model: 'deepseek-reasoner', thinkingLevel: 'max', options: {} })[name] ?? def,
+            getNodeParameter: (name, _i, def) => ({ model: 'deepseek-v4-flash', thinkingLevel: 'max', options: {} })[name] ?? def,
           };
           n.supplyData.call(ctx, 0).then(({ response }) => {
             const effort = response.invocationParams({}).reasoning_effort;

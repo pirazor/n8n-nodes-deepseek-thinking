@@ -43,10 +43,16 @@ Any value except `none` enables thinking mode.
 
 ## Models
 
-Graded effort is honoured by **DeepSeek V4 Pro** and **V4 Flash**, which map
-`low`/`medium` to `high` and `xhigh` to `max`. `deepseek-reasoner` always thinks,
-and `deepseek-chat` responds directly. The model list is loaded live from your
-account's `/models` endpoint.
+Graded effort is honoured by **DeepSeek V4 Pro** (`deepseek-v4-pro`) and
+**V4 Flash** (`deepseek-v4-flash`), which map `low`/`medium` to `high` and
+`xhigh` to `max`. The model list is loaded live from your account's `/models`
+endpoint, so new releases appear without a package update. DeepSeek also swaps
+improved builds in behind the same model id, as it did with V4 Flash 0731, so
+those arrive on their own too.
+
+> **Retired names:** `deepseek-chat` and `deepseek-reasoner` stopped resolving
+> on 2026-07-24. If a saved workflow still selects one, change it to
+> `deepseek-v4-flash` or `deepseek-v4-pro`.
 
 ## Install
 
