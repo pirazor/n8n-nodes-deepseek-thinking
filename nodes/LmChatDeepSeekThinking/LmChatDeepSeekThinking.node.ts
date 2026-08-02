@@ -1,4 +1,4 @@
-import { ChatOpenAI } from '@langchain/openai';
+import { ChatDeepSeekThinking } from './ChatDeepSeekThinking';
 import { N8nTracing } from './N8nTracing';
 import {
 	NodeConnectionTypes,
@@ -222,7 +222,7 @@ export class LmChatDeepSeekThinking implements INodeType {
 
 		const { responseFormat, maxTokens, ...rest } = options;
 
-		const model = new ChatOpenAI({
+		const model = new ChatDeepSeekThinking({
 			apiKey: credentials.apiKey as string,
 			model: modelName,
 			...rest,

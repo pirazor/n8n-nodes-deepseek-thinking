@@ -30,6 +30,9 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Tool-calling loop keeps reasoning_content
+        run: npm test
+
       - name: Verify the node loads and emits reasoning_effort
         run: |
           node -e "

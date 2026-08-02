@@ -85,6 +85,12 @@ response format all work as before.
 
 ## Notes
 
+- **Works inside an AI Agent with tools.** In thinking mode DeepSeek returns a
+  `reasoning_content` field and requires it back on every later request that
+  carries `tools`. LangChain drops it, so the second leg of a tool calling loop
+  fails with `400 The reasoning_content in the thinking mode must be passed back
+  to the API`. This node carries it across turns, matching on tool call id.
+
 - Runs are reported to n8n, so the sub node shows its input, output and
   token usage in the execution panel like the built in models do.
 

@@ -16,6 +16,8 @@ jobs:
           node-version: '22'
       - run: npm install --ignore-scripts
       - run: npm run build
+      - name: Tool-calling loop keeps reasoning_content
+        run: npm test
       - name: Verify node loads and emits reasoning_effort
         run: |
           node -e "
