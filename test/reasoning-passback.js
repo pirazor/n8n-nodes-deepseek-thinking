@@ -21,6 +21,7 @@ const { ChatOpenAI } = require('@langchain/openai');
 const { AIMessage, HumanMessage, ToolMessage } = require('@langchain/core/messages');
 const {
 	ChatDeepSeekThinking,
+	clearRememberedReasoning,
 } = require('../dist/nodes/LmChatDeepSeekThinking/ChatDeepSeekThinking.js');
 
 const REASONING = 'THOUGHT-ABC';
@@ -304,6 +305,42 @@ async function longLoop(turns, parallel) {
 			new ToolMessage({ tool_call_id: 'call_r', content: 'r' }),
 		]);
 		console.log('OK  a response that names the field `reasoning` is passed back as reasoning_content');
+	}
+
+	// n8n's Agent v3 hands tool execution to the workflow engine and re-runs the
+	// agent node for each round: a fresh model instance, in what may be a fresh
+	// process, and assistant messages rebuilt from stored metadata that includes
+	// additional_kwargs.reasoning_content. So the returned message must carry
+	// the reasoning, and a message carrying it must be enough on its own.
+	for (const streamFirstLeg of [false, true]) {
+		const captured = [];
+		installFakeApi(captured);
+		const first = newModel(ChatDeepSeekThinking);
+		let reply;
+		if (streamFirstLeg) {
+			for await (const chunk of await first.stream([new HumanMessage('hi')])) {
+				reply = reply ? reply.concat(chunk) : chunk;
+			}
+		} else {
+			reply = await first.invoke([new HumanMessage('hi')]);
+		}
+		assert.strictEqual(reply.additional_kwargs.reasoning_content, REASONING, `returned message lacks reasoning (stream=${streamFirstLeg})`);
+		assert.strictEqual(reply.tool_calls?.[0]?.id, TOOL_CALL_ID);
+
+		// What the engine rebuilds, in a process that never saw the response.
+		clearRememberedReasoning();
+		const rebuilt = new AIMessage({
+			content: '',
+			tool_calls: [{ id: TOOL_CALL_ID, name: 'lookup', args: {} }],
+			additional_kwargs: { reasoning_content: reply.additional_kwargs.reasoning_content },
+		});
+		await newModel(ChatDeepSeekThinking).invoke([
+			new HumanMessage('hi'),
+			rebuilt,
+			new ToolMessage({ tool_call_id: TOOL_CALL_ID, content: 'result' }),
+		]);
+		assert.strictEqual(captured[1].find((m) => m.role === 'assistant').reasoning_content, REASONING);
+		console.log(`OK  reasoning travels inside the message across a fresh process (first leg streamed=${streamFirstLeg})`);
 	}
 
 	const turns = await longLoop(40, 5);
