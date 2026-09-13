@@ -152,6 +152,38 @@ export class ChatDeepSeekThinking extends ChatOpenAI {
 		return wrapped as unknown as T;
 	}
 
+	/**
+	 * When the API still rejects a request over `reasoning_content`, say which
+	 * assistant messages had nothing to restore and where they sit, so a report
+	 * of the error carries enough to tell an old install from an API rule this
+	 * class does not know about.
+	 */
+	private explainReasoningError(error: unknown, request: { messages?: LooseMessage[] }): unknown {
+		const message = (error as { message?: unknown })?.message;
+		if (typeof message !== 'string' || !message.includes('reasoning_content')) return error;
+		if (!Array.isArray(request?.messages)) return error;
+
+		const messages = request.messages;
+		let lastUser = -1;
+		messages.forEach((m, i) => {
+			if (m?.role === 'user') lastUser = i;
+		});
+
+		const missing = messages
+			.map((m, i) => ({ m, i }))
+			.filter(({ m }) => m?.role === 'assistant' && !m.reasoning_content)
+			.map(({ m, i }) => {
+				const ids = (m.tool_calls ?? []).map((c) => c?.id ?? '?').join(',');
+				const where = i > lastUser ? 'current round' : 'earlier round';
+				return `#${i} (${where}${ids ? `, tool_calls ${ids}` : ', no tool_calls'})`;
+			});
+
+		(error as { message: string }).message =
+			`${message} [n8n-nodes-deepseek-thinking: ${missing.length} assistant message(s) without ` +
+			`reasoning_content: ${missing.join('; ') || 'none'}; ${this.reasoningByKey.size} remembered]`;
+		return error;
+	}
+
 	// The base method is overloaded on streaming; widen to cover both and let
 	// the call sites keep their own narrowing.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -160,7 +192,12 @@ export class ChatDeepSeekThinking extends ChatOpenAI {
 			this.restore(request.messages as LooseMessage[]);
 		}
 
-		const response = await super.completionWithRetry(request, options);
+		let response: any;
+		try {
+			response = await super.completionWithRetry(request, options);
+		} catch (error) {
+			throw this.explainReasoningError(error, request);
+		}
 
 		if (request?.stream) {
 			if (response && typeof response[Symbol.asyncIterator] === 'function') {

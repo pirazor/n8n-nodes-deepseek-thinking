@@ -1,6 +1,6 @@
 {
   "name": "n8n-nodes-deepseek-thinking",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Make DeepSeek think as hard as your workflow deserves. An n8n community node that unlocks DeepSeek's Thinking Level (reasoning_effort: none to max) that the built-in node never exposed.",
   "keywords": [
     "n8n-community-node-package",
@@ -42,7 +42,7 @@
     "build": "tsc && cp nodes/LmChatDeepSeekThinking/deepseek.png dist/nodes/LmChatDeepSeekThinking/",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build",
-    "test": "node test/reasoning-passback.js"
+    "test": "node test/reasoning-passback.js && node test/agent-flow.js"
   },
   "files": [
     "dist"
@@ -63,6 +63,8 @@
   "devDependencies": {
     "@types/node": "^20.14.0",
     "n8n-workflow": "^1.60.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "langchain": "^0.3.37",
+    "zod": "^3.23.8"
   }
 }
