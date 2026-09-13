@@ -21,6 +21,7 @@ const { ChatOpenAI } = require('@langchain/openai');
 const { AIMessage, HumanMessage, ToolMessage } = require('@langchain/core/messages');
 const {
 	ChatDeepSeekThinking,
+	clearRememberedReasoning,
 } = require('../dist/nodes/LmChatDeepSeekThinking/ChatDeepSeekThinking.js');
 
 const REASONING = 'THOUGHT-ABC';
@@ -235,7 +236,112 @@ async function longLoop(turns, parallel) {
 		diagnostic && diagnostic.includes('1 assistant message(s) without reasoning_content: #1 (current round, tool_calls call_unknown)'),
 		`diagnostic missing from error: ${diagnostic}`,
 	);
+	assert.ok(diagnostic.includes('this instance saw 0 response(s)'), `diagnostic lacks instance counters: ${diagnostic}`);
 	console.log('OK  an unrecoverable 400 names the assistant messages that had no reasoning to restore');
+
+	// The instance replaying a turn is not always the one that saw the response
+	// (n8n can supply a fresh model instance mid-run), so the store is shared.
+	{
+		const captured = [];
+		installFakeApi(captured);
+		const first = newModel(ChatDeepSeekThinking);
+		await first.invoke([new HumanMessage('hi')]);
+		const second = newModel(ChatDeepSeekThinking);
+		await second.invoke([
+			new HumanMessage('hi'),
+			new AIMessage({ content: '', tool_calls: [{ id: TOOL_CALL_ID, name: 'lookup', args: {} }] }),
+			new ToolMessage({ tool_call_id: TOOL_CALL_ID, content: 'result' }),
+		]);
+		assert.strictEqual(captured[1].find((m) => m.role === 'assistant').reasoning_content, REASONING);
+		console.log('OK  a fresh model instance restores a turn another instance saw');
+	}
+
+	// One response with parallel tool calls can come back split into one
+	// assistant message per call; each must get the reasoning of its turn.
+	{
+		let leg = 0;
+		ChatOpenAI.prototype.completionWithRetry = async function (request) {
+			leg += 1;
+			if (leg === 1) {
+				return {
+					id: '1', model: 'm', usage: {},
+					choices: [{ index: 0, finish_reason: 'tool_calls', message: {
+						role: 'assistant', content: '', reasoning_content: 'R-split',
+						tool_calls: ['call_00_a', 'call_01_b'].map((id) => ({ id, type: 'function', function: { name: 'lookup', arguments: '{}' } })),
+					} }],
+				};
+			}
+			assertReasoningPresent(request, () => 'R-split');
+			return { id: '2', model: 'm', usage: {}, choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'done' } }] };
+		};
+		const model = newModel(ChatDeepSeekThinking);
+		await model.invoke([new HumanMessage('hi')]);
+		await newModel(ChatDeepSeekThinking).invoke([
+			new HumanMessage('hi'),
+			new AIMessage({ content: '', tool_calls: [{ id: 'call_00_a', name: 'lookup', args: {} }] }),
+			new ToolMessage({ tool_call_id: 'call_00_a', content: 'a' }),
+			new AIMessage({ content: '', tool_calls: [{ id: 'call_01_b', name: 'lookup', args: {} }] }),
+			new ToolMessage({ tool_call_id: 'call_01_b', content: 'b' }),
+		]);
+		console.log('OK  parallel tool calls replayed as separate assistant messages each get their reasoning');
+	}
+
+	// Servers that name the field `reasoning` are captured too.
+	{
+		let leg = 0;
+		ChatOpenAI.prototype.completionWithRetry = async function (request) {
+			leg += 1;
+			if (leg === 1) {
+				return { id: '1', model: 'm', usage: {}, choices: [{ index: 0, finish_reason: 'tool_calls', message: { ...firstLegMessage('call_r', 'R-alt'), reasoning_content: undefined, reasoning: 'R-alt' } }] };
+			}
+			assertReasoningPresent(request, () => 'R-alt');
+			return { id: '2', model: 'm', usage: {}, choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: 'done' } }] };
+		};
+		const model = newModel(ChatDeepSeekThinking);
+		await model.invoke([new HumanMessage('hi')]);
+		await model.invoke([
+			new HumanMessage('hi'),
+			new AIMessage({ content: '', tool_calls: [{ id: 'call_r', name: 'lookup', args: {} }] }),
+			new ToolMessage({ tool_call_id: 'call_r', content: 'r' }),
+		]);
+		console.log('OK  a response that names the field `reasoning` is passed back as reasoning_content');
+	}
+
+	// n8n's Agent v3 hands tool execution to the workflow engine and re-runs the
+	// agent node for each round: a fresh model instance, in what may be a fresh
+	// process, and assistant messages rebuilt from stored metadata that includes
+	// additional_kwargs.reasoning_content. So the returned message must carry
+	// the reasoning, and a message carrying it must be enough on its own.
+	for (const streamFirstLeg of [false, true]) {
+		const captured = [];
+		installFakeApi(captured);
+		const first = newModel(ChatDeepSeekThinking);
+		let reply;
+		if (streamFirstLeg) {
+			for await (const chunk of await first.stream([new HumanMessage('hi')])) {
+				reply = reply ? reply.concat(chunk) : chunk;
+			}
+		} else {
+			reply = await first.invoke([new HumanMessage('hi')]);
+		}
+		assert.strictEqual(reply.additional_kwargs.reasoning_content, REASONING, `returned message lacks reasoning (stream=${streamFirstLeg})`);
+		assert.strictEqual(reply.tool_calls?.[0]?.id, TOOL_CALL_ID);
+
+		// What the engine rebuilds, in a process that never saw the response.
+		clearRememberedReasoning();
+		const rebuilt = new AIMessage({
+			content: '',
+			tool_calls: [{ id: TOOL_CALL_ID, name: 'lookup', args: {} }],
+			additional_kwargs: { reasoning_content: reply.additional_kwargs.reasoning_content },
+		});
+		await newModel(ChatDeepSeekThinking).invoke([
+			new HumanMessage('hi'),
+			rebuilt,
+			new ToolMessage({ tool_call_id: TOOL_CALL_ID, content: 'result' }),
+		]);
+		assert.strictEqual(captured[1].find((m) => m.role === 'assistant').reasoning_content, REASONING);
+		console.log(`OK  reasoning travels inside the message across a fresh process (first leg streamed=${streamFirstLeg})`);
+	}
 
 	const turns = await longLoop(40, 5);
 	assert.strictEqual(turns, 40);

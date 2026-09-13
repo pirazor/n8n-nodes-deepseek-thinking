@@ -123,6 +123,14 @@ async function run(Cls, { streaming }) {
     assert.strictEqual(log.length, 3, `expected 3 legs, got ${log.length}`);
     assert.strictEqual(log[2].messages.filter((m) => m.role === 'assistant').length, 2);
     assert.ok(log.every((l) => l.stream === streaming), 'stream flag mismatch');
+    // The scratchpad's own AIMessage objects were annotated, so an engine that
+    // stores additional_kwargs (n8n Agent v3) would have the reasoning too.
+    const steps = typeof output === 'string' ? null : output?.intermediateSteps;
+    if (steps) {
+      const logged = steps.flatMap((s) => s.action.messageLog ?? []);
+      assert.ok(logged.length >= 2, `expected message logs, got ${logged.length}`);
+      for (const m of logged) assert.ok(m.additional_kwargs?.reasoning_content, 'messageLog message lacks reasoning_content');
+    }
     console.log(`OK  subclass completes 2 parallel + 1 sequential tool calls through AgentExecutor (streaming=${streaming}${repeatId ? ', id on every delta' : ''})`);
   }
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });

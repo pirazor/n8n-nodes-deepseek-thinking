@@ -92,7 +92,14 @@ response format all work as before.
   to the API`. This node carries it across turns, matching on tool call id, on
   both the plain and the streamed transport (n8n streams the model whenever
   the workflow is triggered with a streaming response, e.g. the Chat Trigger
-  in streaming mode), and keeps every turn of a long tool loop.
+  in streaming mode), and keeps every turn of a long tool loop. The reasoning
+  is also attached to the returned message as
+  `additional_kwargs.reasoning_content` and read back from incoming messages,
+  which is what n8n's **AI Agent v3** relies on: it runs tools through the
+  workflow engine and re-runs the agent with a fresh model instance for each
+  round, rebuilding the assistant messages from stored metadata. A shared
+  in-process store covers agents that replay LangChain's own message objects
+  (Agent v2, fallback models).
 
 - If the 400 still appears, the error message now ends with a bracketed
   note from this node listing which assistant messages had no
