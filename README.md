@@ -92,7 +92,10 @@ response format all work as before.
   to the API`. This node carries it across turns, matching on tool call id, on
   both the plain and the streamed transport (n8n streams the model whenever
   the workflow is triggered with a streaming response, e.g. the Chat Trigger
-  in streaming mode), and keeps every turn of a long tool loop.
+  in streaming mode), and keeps every turn of a long tool loop. The store is
+  shared across model instances in the n8n process, so a turn is restored
+  even when n8n hands the agent a fresh instance (fallback model, re-supplied
+  sub-node) for the next request.
 
 - If the 400 still appears, the error message now ends with a bracketed
   note from this node listing which assistant messages had no

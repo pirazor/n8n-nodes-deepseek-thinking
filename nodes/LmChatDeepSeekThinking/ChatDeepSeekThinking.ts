@@ -28,14 +28,23 @@ import { ChatOpenAI } from '@langchain/openai';
  * they pass through, without changing what the caller sees.
  *
  * Messages are matched on tool call id, which survives LangChain's conversion
- * intact and is unique per turn. Assistant turns without tool calls fall back to
+ * intact and is unique per call. Assistant turns without tool calls fall back to
  * their content, which is what the API keys off anyway.
+ *
+ * The store is process-wide rather than per instance. The instance that makes
+ * a request is not always the one that saw the responses being replayed: n8n
+ * can hand the agent a fresh model instance (a fallback model, a re-supplied
+ * sub-node, history loaded from memory), and a per-instance cache then has
+ * nothing to restore. Tool call ids are random and unique, so sharing the
+ * store across instances cannot mix conversations up.
  */
 
 type LooseMessage = {
 	role?: string;
 	content?: unknown;
 	reasoning_content?: string;
+	/** Some OpenAI-compatible servers use this name instead. */
+	reasoning?: string;
 	tool_calls?: Array<{ id?: string }>;
 };
 
@@ -48,14 +57,22 @@ type LooseChunk = {
 };
 
 // Every tool-calling turn of the current round is replayed on every request of
-// that round and each of them must carry its reasoning, so the cache has to
-// outlast a whole agent run. It is per model instance (one per node execution)
-// and is released with it, so the bound only guards against a runaway loop.
-// Each turn stores one key per tool call plus one for its content.
-const MAX_REMEMBERED = 1024;
+// that round and each of them must carry its reasoning, so the store has to
+// outlast a whole agent run, and with several agents in flight, several. Each
+// turn stores one key per tool call plus one for its content. Oldest entries
+// go first once the bound is hit.
+const MAX_REMEMBERED = 4096;
+const reasoningByKey = new Map<string, string>();
+
+function reasoningOf(message: LooseMessage): string | undefined {
+	const value = message.reasoning_content ?? message.reasoning;
+	return typeof value === 'string' && value !== '' ? value : undefined;
+}
 
 export class ChatDeepSeekThinking extends ChatOpenAI {
-	private readonly reasoningByKey = new Map<string, string>();
+	/** Responses this instance has seen, and how many carried reasoning. */
+	private seenResponses = 0;
+	private seenWithReasoning = 0;
 
 	/** Identifiers a turn can be recognised by on the next request. */
 	private static keysFor(message: LooseMessage): string[] {
@@ -73,17 +90,21 @@ export class ChatDeepSeekThinking extends ChatOpenAI {
 	}
 
 	private remember(message: LooseMessage): void {
-		const reasoning = message.reasoning_content;
-		if (typeof reasoning !== 'string' || reasoning === '') return;
+		this.seenResponses += 1;
+		const reasoning = reasoningOf(message);
+		if (!reasoning) return;
+		this.seenWithReasoning += 1;
 
 		for (const key of ChatDeepSeekThinking.keysFor(message)) {
-			this.reasoningByKey.set(key, reasoning);
+			// Re-insert so a refreshed key moves to the young end of the map.
+			reasoningByKey.delete(key);
+			reasoningByKey.set(key, reasoning);
 		}
 
-		while (this.reasoningByKey.size > MAX_REMEMBERED) {
-			const oldest = this.reasoningByKey.keys().next();
+		while (reasoningByKey.size > MAX_REMEMBERED) {
+			const oldest = reasoningByKey.keys().next();
 			if (oldest.done) break;
-			this.reasoningByKey.delete(oldest.value);
+			reasoningByKey.delete(oldest.value);
 		}
 	}
 
@@ -93,7 +114,7 @@ export class ChatDeepSeekThinking extends ChatOpenAI {
 			if (message?.role !== 'assistant' || message.reasoning_content) continue;
 
 			for (const key of ChatDeepSeekThinking.keysFor(message)) {
-				const reasoning = this.reasoningByKey.get(key);
+				const reasoning = reasoningByKey.get(key);
 				if (reasoning) {
 					message.reasoning_content = reasoning;
 					break;
@@ -118,8 +139,9 @@ export class ChatDeepSeekThinking extends ChatOpenAI {
 				for await (const chunk of stream) {
 					const delta = chunk?.choices?.[0]?.delta;
 					if (delta) {
-						if (typeof delta.reasoning_content === 'string') {
-							assembled.reasoning_content += delta.reasoning_content;
+						const piece = delta.reasoning_content ?? delta.reasoning;
+						if (typeof piece === 'string') {
+							assembled.reasoning_content += piece;
 						}
 						if (typeof delta.content === 'string') {
 							assembled.content += delta.content;
@@ -154,9 +176,10 @@ export class ChatDeepSeekThinking extends ChatOpenAI {
 
 	/**
 	 * When the API still rejects a request over `reasoning_content`, say which
-	 * assistant messages had nothing to restore and where they sit, so a report
-	 * of the error carries enough to tell an old install from an API rule this
-	 * class does not know about.
+	 * assistant messages had nothing to restore and where they sit, and what
+	 * this instance and the shared store have seen, so a report of the error
+	 * carries enough to tell an old install, a fresh instance, or a response
+	 * without the field from an API rule this class does not know about.
 	 */
 	private explainReasoningError(error: unknown, request: { messages?: LooseMessage[] }): unknown {
 		const message = (error as { message?: unknown })?.message;
@@ -180,7 +203,9 @@ export class ChatDeepSeekThinking extends ChatOpenAI {
 
 		(error as { message: string }).message =
 			`${message} [n8n-nodes-deepseek-thinking: ${missing.length} assistant message(s) without ` +
-			`reasoning_content: ${missing.join('; ') || 'none'}; ${this.reasoningByKey.size} remembered]`;
+			`reasoning_content: ${missing.join('; ') || 'none'}; this instance saw ` +
+			`${this.seenResponses} response(s), ${this.seenWithReasoning} with reasoning; ` +
+			`${reasoningByKey.size} key(s) remembered process-wide]`;
 		return error;
 	}
 
@@ -192,6 +217,7 @@ export class ChatDeepSeekThinking extends ChatOpenAI {
 			this.restore(request.messages as LooseMessage[]);
 		}
 
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		let response: any;
 		try {
 			response = await super.completionWithRetry(request, options);
