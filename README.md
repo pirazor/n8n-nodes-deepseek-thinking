@@ -94,6 +94,13 @@ response format all work as before.
   the workflow is triggered with a streaming response, e.g. the Chat Trigger
   in streaming mode), and keeps every turn of a long tool loop.
 
+- If the 400 still appears, the error message now ends with a bracketed
+  note from this node listing which assistant messages had no
+  `reasoning_content` to restore and whether they belong to the current
+  round. Include it when reporting an issue. If the note is absent, n8n is
+  still running an older version of the package: check the version under
+  Settings → Community nodes and restart n8n after updating.
+
 - Runs are reported to n8n, so the sub node shows its input, output and
   token usage in the execution panel like the built in models do.
 

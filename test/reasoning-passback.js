@@ -215,6 +215,28 @@ async function longLoop(turns, parallel) {
 	assert.strictEqual(assistant.reasoning_content, REASONING, 'reasoning_content collected from the stream was not passed back');
 	console.log('OK  subclass collects reasoning_content from a streamed leg and passes it back');
 
+	// A turn this instance never saw (e.g. an old install, or a rule the class
+	// does not know) still fails, but the error now says what was missing.
+	ChatOpenAI.prototype.completionWithRetry = async function (request) {
+		assertReasoningPresent(request, () => 'never-seen');
+		return { choices: [] };
+	};
+	let diagnostic = null;
+	try {
+		await newModel(ChatDeepSeekThinking).invoke([
+			new HumanMessage('hi'),
+			new AIMessage({ content: '', tool_calls: [{ id: 'call_unknown', name: 'lookup', args: {} }] }),
+			new ToolMessage({ tool_call_id: 'call_unknown', content: 'result' }),
+		]);
+	} catch (error) {
+		diagnostic = error.message;
+	}
+	assert.ok(
+		diagnostic && diagnostic.includes('1 assistant message(s) without reasoning_content: #1 (current round, tool_calls call_unknown)'),
+		`diagnostic missing from error: ${diagnostic}`,
+	);
+	console.log('OK  an unrecoverable 400 names the assistant messages that had no reasoning to restore');
+
 	const turns = await longLoop(40, 5);
 	assert.strictEqual(turns, 40);
 	console.log('OK  a 40-turn loop with 5 parallel tool calls per turn keeps every turn\'s reasoning');
